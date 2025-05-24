@@ -62,28 +62,28 @@ public enum Dependency {
     ADVENTURE(
             "me{}lucko",
             "adventure-api",
-            "4.13.0",
-            "gcmYlY1KDrzbnE9nB8rA44oBZKPSMvv9kNRefoEuud0=",
+            "4.21.1",
+            "kQJlZ0gUxdTRRkskT43qiy2kpt9s654LvB0nqoCP6YE=",
             Relocation.of("adventure", "net{}kyori{}adventure")
     ),
     ADVENTURE_PLATFORM(
             "me{}lucko",
             "adventure-platform-api",
-            "4.13.0",
+            "4.21.1",
             "Kk8IkEMVa9ITBfC3yocpcXQiZ9CwN9VxeWjKUD8I0n0=",
             Relocation.of("adventure", "net{}kyori{}adventure")
     ),
     ADVENTURE_PLATFORM_BUKKIT(
             "me{}lucko",
             "adventure-platform-bukkit",
-            "4.13.3",
-            "ZXw7pf+a6tjGdB2WO1rB/KQ+ETLAH8kQFSu3El7jopY=",
+            "4.21.1",
+            "NffwBnfT/Mc6VpsmTcaXPvckv9T4vPJD83adt0C8vao=",
             Relocation.of("adventure", "net{}kyori{}adventure")
     ),
     ADVENTURE_PLATFORM_BUNGEECORD(
             "me{}lucko",
             "adventure-platform-bungeecord",
-            "4.13.3",
+            "4.21.1",
             "7hnndD6dO6LZoRbtOBdn6OFK0y/T2PqNLHxCg6zaQlo=",
             Relocation.of("adventure", "net{}kyori{}adventure")
     ),
