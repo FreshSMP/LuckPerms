@@ -94,7 +94,7 @@ public class NeoForgeCommandListUpdater implements LuckPermsEventListener {
         this.plugin.getBootstrap().getScheduler().sync((() -> {
             ServerPlayer player = this.plugin.getBootstrap().getPlayer(uniqueId).orElse(null);
             if (player != null) {
-                MinecraftServer server = player.getServer();
+                MinecraftServer server = player.level().getServer();
                 if (server != null) {
                     server.getPlayerList().sendPlayerPermissionLevel(player);
                 }
