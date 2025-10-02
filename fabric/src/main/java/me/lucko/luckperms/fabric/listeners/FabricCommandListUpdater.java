@@ -35,14 +35,13 @@ import net.luckperms.api.event.EventBus;
 import net.luckperms.api.event.context.ContextUpdateEvent;
 import net.luckperms.api.event.group.GroupDataRecalculateEvent;
 import net.luckperms.api.event.user.UserDataRecalculateEvent;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Calls {@link net.minecraft.server.PlayerManager#sendCommandTree()} when a players permissions change.
+ * Calls {@link net.minecraft.server.PlayerManager()} when a players permissions change.
  *
  * TODO: Extract base class for this and BukkitCommandListUpdater
  */
@@ -90,15 +89,13 @@ public class FabricCommandListUpdater implements LuckPermsEventListener {
 
     // Called when the buffer times out.
     private void sendUpdate(UUID uniqueId) {
-        this.plugin.getBootstrap().getScheduler().sync(() -> {
-            ServerPlayerEntity player = this.plugin.getBootstrap().getPlayer(uniqueId).orElse(null);
-            if (player != null) {
-                MinecraftServer server = player.getServer();
-                if (server != null) {
-                    server.getPlayerManager().sendCommandTree(player);
-                }
-            }
-        });
+        this.plugin.getBootstrap().getScheduler().sync(() ->
+            this.plugin.getBootstrap().getPlayer(uniqueId).ifPresent(player ->
+                this.plugin.getBootstrap().getServer().ifPresent(server ->
+                    server.getPlayerManager().sendCommandTree(player)
+                )
+            )
+        );
     }
 
     private final class SendBuffer extends BufferedRequest<Void> {
