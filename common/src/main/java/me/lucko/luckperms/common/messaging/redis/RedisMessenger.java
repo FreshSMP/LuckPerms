@@ -86,9 +86,11 @@ public class RedisMessenger implements Messenger {
     }
 
     private static HostAndPort parseAddress(String address) {
-        String[] addressSplit = address.split(":");
-        String host = addressSplit[0];
-        int port = addressSplit.length > 1 ? Integer.parseInt(addressSplit[1]) : Protocol.DEFAULT_PORT;
+        me.lucko.luckperms.common.util.HostAndPort hostAndPort = new me.lucko.luckperms.common.util.HostAndPort(address)
+                .requireBracketsForIPv6()
+                .withDefaultPort(Protocol.DEFAULT_PORT);
+        String host = hostAndPort.getHost();
+        int port = hostAndPort.getPort();
         return new HostAndPort(host, port);
     }
 

@@ -33,6 +33,7 @@ import me.lucko.luckperms.common.plugin.logging.PluginLogger;
 import me.lucko.luckperms.common.storage.StorageMetadata;
 import me.lucko.luckperms.common.storage.implementation.sql.connection.ConnectionFactory;
 import me.lucko.luckperms.common.storage.misc.StorageCredentials;
+import me.lucko.luckperms.common.util.HostAndPort;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -58,7 +59,7 @@ public abstract class HikariConnectionFactory implements ConnectionFactory {
      *
      * @return the default port
      */
-    protected abstract String defaultPort();
+    protected abstract int defaultPort();
 
     /**
      * Configures the {@link HikariConfig} with the relevant database properties.
@@ -72,7 +73,7 @@ public abstract class HikariConnectionFactory implements ConnectionFactory {
      * @param username the database username
      * @param password the database password
      */
-    protected abstract void configureDatabase(HikariConfig config, String address, String port, String databaseName, String username, String password);
+    protected abstract void configureDatabase(HikariConfig config, String address, int port, String databaseName, String username, String password);
 
     /**
      * Allows the connection factory instance to override certain properties before they are set.
@@ -117,9 +118,12 @@ public abstract class HikariConnectionFactory implements ConnectionFactory {
         config.setPoolName("luckperms-hikari");
 
         // get the database info/credentials from the config file
-        String[] addressSplit = this.configuration.getAddress().split(":");
-        String address = addressSplit[0];
-        String port = addressSplit.length > 1 ? addressSplit[1] : defaultPort();
+        HostAndPort hostAndPort = new HostAndPort(this.configuration.getAddress())
+                .requireBracketsForIPv6()
+                .withDefaultPort(defaultPort());
+
+        String address = hostAndPort.getHost();
+        int port = hostAndPort.getPort();
 
         // allow the implementation to configure the HikariConfig appropriately with these values
         try {
