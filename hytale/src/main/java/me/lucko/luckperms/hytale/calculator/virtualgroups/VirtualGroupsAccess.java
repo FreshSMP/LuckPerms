@@ -27,14 +27,17 @@ package me.lucko.luckperms.hytale.calculator.virtualgroups;
 
 import com.google.common.collect.ImmutableMap;
 import com.hypixel.hytale.server.core.permissions.PermissionsModule;
+import me.lucko.luckperms.common.model.InheritanceOrigin;
+import me.lucko.luckperms.common.model.PermissionHolderIdentifier;
 import me.lucko.luckperms.common.node.factory.NodeBuilders;
+import me.lucko.luckperms.common.util.ImmutableCollectors;
+import net.luckperms.api.model.data.DataType;
 import net.luckperms.api.node.Node;
 
 import java.lang.reflect.Field;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class VirtualGroupsAccess {
 
@@ -54,11 +57,11 @@ public class VirtualGroupsAccess {
      *
      * @return the exported mapping
      */
-    public static Map<String, Map<String, Node>> export() {
+    public static ImmutableMap<String, ImmutableMap<String, Node>> export() {
         Map<String, Set<String>> virtualGroups = getVirtualGroups();
-        return virtualGroups.entrySet().stream().collect(Collectors.toMap(
-                Map.Entry::getKey,
-                e -> transformSet(e.getValue())
+        return virtualGroups.entrySet().stream().collect(ImmutableCollectors.toMap(
+                e -> e.getKey().toLowerCase(Locale.ROOT),
+                e -> transformSet(e.getValue(), e.getKey())
         ));
     }
 
@@ -83,8 +86,13 @@ public class VirtualGroupsAccess {
      * @param permissions the input
      * @return the transformed map
      */
-    private static Map<String, Node> transformSet(Set<String> permissions) {
+    private static ImmutableMap<String, Node> transformSet(Set<String> permissions, String originGroup) {
         ImmutableMap.Builder<String, Node> builder = ImmutableMap.builder();
+
+        InheritanceOrigin origin = new InheritanceOrigin(
+                new PermissionHolderIdentifier("virtual_group", originGroup),
+                DataType.TRANSIENT
+        );
 
         for (String permission : permissions) {
             boolean value = true;
@@ -93,10 +101,12 @@ public class VirtualGroupsAccess {
                 permission = permission.substring(1);
             }
 
-            builder.put(
-                    permission.toLowerCase(Locale.ROOT),
-                    NodeBuilders.determineMostApplicable(permission).value(value).build()
-            );
+            Node node = NodeBuilders.determineMostApplicable(permission)
+                    .value(value)
+                    .withMetadata(InheritanceOrigin.KEY, origin)
+                    .build();
+
+            builder.put(permission.toLowerCase(Locale.ROOT), node);
         }
 
         return builder.build();
