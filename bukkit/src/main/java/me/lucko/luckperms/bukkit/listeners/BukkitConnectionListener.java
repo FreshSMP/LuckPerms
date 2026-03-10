@@ -34,6 +34,9 @@ import me.lucko.luckperms.common.locale.Message;
 import me.lucko.luckperms.common.locale.TranslationManager;
 import me.lucko.luckperms.common.model.User;
 import me.lucko.luckperms.common.plugin.util.AbstractConnectionListener;
+import com.destroystokyo.paper.profile.PlayerProfile;
+import io.papermc.paper.connection.PlayerLoginConnection;
+import io.papermc.paper.event.connection.PlayerConnectionValidateLoginEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
@@ -41,7 +44,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
-import org.bukkit.event.player.PlayerLoginEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.Collections;
@@ -153,44 +156,94 @@ public class BukkitConnectionListener extends AbstractConnectionListener impleme
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlayerLogin(PlayerLoginEvent e) {
+    public void onPlayerLogin(PlayerConnectionValidateLoginEvent e) {
         /* Called when the player starts logging into the server.
-           At this point, the users data should be present and loaded. */
+           At this point, the users data should be present and loaded.
+           Uses PlayerConnectionValidateLoginEvent instead of the deprecated PlayerLoginEvent. */
 
-        final Player player = e.getPlayer();
-
-        if (this.plugin.getConfiguration().get(ConfigKeys.DEBUG_LOGINS)) {
-            this.plugin.getLogger().info("Processing login for " + player.getUniqueId() + " - " + player.getName());
+        if (!(e.getConnection() instanceof PlayerLoginConnection)) {
+            return;
         }
 
-        final User user = this.plugin.getUserManager().getIfLoaded(player.getUniqueId());
+        final PlayerProfile profile = ((PlayerLoginConnection) e.getConnection()).getAuthenticatedProfile();
+        if (profile == null) {
+            return;
+        }
+
+        if (this.plugin.getConfiguration().get(ConfigKeys.DEBUG_LOGINS)) {
+            this.plugin.getLogger().info("Processing login for " + profile.getId() + " - " + profile.getName());
+        }
+
+        if (!e.isAllowed()) {
+            return;
+        }
+
+        final User user = this.plugin.getUserManager().getIfLoaded(profile.getId());
 
         /* User instance is null for whatever reason. Could be that it was unloaded between asyncpre and now. */
         if (user == null) {
-            this.deniedLogin.add(player.getUniqueId());
+            this.deniedLogin.add(profile.getId());
 
-            if (!getUniqueConnections().contains(player.getUniqueId())) {
+            if (!getUniqueConnections().contains(profile.getId())) {
 
-                this.plugin.getLogger().warn("User " + player.getUniqueId() + " - " + player.getName() +
+                this.plugin.getLogger().warn("User " + profile.getId() + " - " + profile.getName() +
                         " doesn't have data pre-loaded, they have never been processed during pre-login in this session." +
                         " - denying login.");
 
                 if (this.detectedCraftBukkitOfflineMode) {
                     printCraftBukkitOfflineModeError();
 
-                    Component reason = TranslationManager.render(Message.LOADING_STATE_ERROR_CB_OFFLINE_MODE.build(), PlayerLocaleUtil.getLocale(player));
-                    e.disallow(PlayerLoginEvent.Result.KICK_OTHER, LegacyComponentSerializer.legacySection().serialize(reason));
+                    Component reason = TranslationManager.render(Message.LOADING_STATE_ERROR_CB_OFFLINE_MODE.build(), PlayerLocaleUtil.getLocale(profile.getId()));
+                    e.kickMessage(reason);
                     return;
                 }
 
             } else {
-                this.plugin.getLogger().warn("User " + player.getUniqueId() + " - " + player.getName() +
+                this.plugin.getLogger().warn("User " + profile.getId() + " - " + profile.getName() +
                         " doesn't currently have data pre-loaded, but they have been processed before in this session." +
                         " - denying login.");
             }
 
-            Component reason = TranslationManager.render(Message.LOADING_STATE_ERROR.build(), PlayerLocaleUtil.getLocale(player));
-            e.disallow(PlayerLoginEvent.Result.KICK_OTHER, LegacyComponentSerializer.legacySection().serialize(reason));
+            Component reason = TranslationManager.render(Message.LOADING_STATE_ERROR.build(), PlayerLocaleUtil.getLocale(profile.getId()));
+            e.kickMessage(reason);
+        }
+
+        // User instance is there, but Permissible injection requires the Player entity.
+        // This is deferred to the PlayerJoinEvent handler below.
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerLoginMonitor(PlayerConnectionValidateLoginEvent e) {
+        /* Listen to see if the event was cancelled after we initially handled the login
+           If the connection was cancelled here, we need to do something to clean up the data that was loaded. */
+
+        if (!(e.getConnection() instanceof PlayerLoginConnection)) {
+            return;
+        }
+
+        final PlayerProfile profile = ((PlayerLoginConnection) e.getConnection()).getAuthenticatedProfile();
+        if (profile == null) {
+            return;
+        }
+
+        // Check to see if this connection was denied at LOW. Even if it was denied at LOW, their data will still be present.
+        if (this.deniedLogin.remove(profile.getId())) {
+            // This is a problem, as they were denied at low priority, but are now being allowed.
+            if (e.isAllowed()) {
+                this.plugin.getLogger().severe("Player connection was re-allowed for " + profile.getId());
+                e.kickMessage(Component.empty());
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerJoin(PlayerJoinEvent e) {
+        // Permissible injection and context update, deferred from onPlayerLogin
+        // as the Player entity is not available in PlayerConnectionValidateLoginEvent.
+        final Player player = e.getPlayer();
+
+        final User user = this.plugin.getUserManager().getIfLoaded(player.getUniqueId());
+        if (user == null) {
             return;
         }
 
@@ -207,8 +260,8 @@ public class BukkitConnectionListener extends AbstractConnectionListener impleme
             this.plugin.getLogger().warn("Exception thrown when setting up permissions for " +
                     player.getUniqueId() + " - " + player.getName() + " - denying login.", t);
 
-            Component reason = TranslationManager.render(Message.LOADING_SETUP_ERROR.build(), PlayerLocaleUtil.getLocale(player));
-            e.disallow(PlayerLoginEvent.Result.KICK_OTHER, LegacyComponentSerializer.legacySection().serialize(reason));
+            Component reason = TranslationManager.render(Message.LOADING_SETUP_ERROR.build());
+            player.kick(reason);
             return;
         }
 
@@ -216,19 +269,7 @@ public class BukkitConnectionListener extends AbstractConnectionListener impleme
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onPlayerLoginMonitor(PlayerLoginEvent e) {
-        /* Listen to see if the event was cancelled after we initially handled the login
-           If the connection was cancelled here, we need to do something to clean up the data that was loaded. */
-
-        // Check to see if this connection was denied at LOW. Even if it was denied at LOW, their data will still be present.
-        if (this.deniedLogin.remove(e.getPlayer().getUniqueId())) {
-            // This is a problem, as they were denied at low priority, but are now being allowed.
-            if (e.getResult() == PlayerLoginEvent.Result.ALLOWED) {
-                this.plugin.getLogger().severe("Player connection was re-allowed for " + e.getPlayer().getUniqueId());
-                e.disallow(PlayerLoginEvent.Result.KICK_OTHER, "");
-            }
-        }
-
+    public void onPlayerJoinMonitor(PlayerJoinEvent e) {
         PermissibleInjector.checkInjected(e.getPlayer(), this.plugin.getLogger());
     }
 

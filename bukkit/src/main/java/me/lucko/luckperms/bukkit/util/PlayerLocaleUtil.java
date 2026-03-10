@@ -25,9 +25,11 @@
 
 package me.lucko.luckperms.bukkit.util;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Method;
+import java.util.UUID;
 import java.util.function.Function;
 
 public final class PlayerLocaleUtil {
@@ -62,6 +64,14 @@ public final class PlayerLocaleUtil {
 
     public static String getLocale(Player player) {
         return GET_LOCALE_FUNCTION.apply(player);
+    }
+
+    public static String getLocale(UUID uniqueId) {
+        Player player = Bukkit.getPlayer(uniqueId);
+        if (player != null) {
+            return getLocale(player);
+        }
+        return null;
     }
 
 }
