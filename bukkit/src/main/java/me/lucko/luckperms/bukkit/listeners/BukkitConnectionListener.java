@@ -260,7 +260,7 @@ public class BukkitConnectionListener extends AbstractConnectionListener impleme
             this.plugin.getLogger().warn("Exception thrown when setting up permissions for " +
                     player.getUniqueId() + " - " + player.getName() + " - denying login.", t);
 
-            Component reason = TranslationManager.render(Message.LOADING_SETUP_ERROR.build());
+            Component reason = TranslationManager.render(Message.LOADING_SETUP_ERROR.build(), PlayerLocaleUtil.getLocale(player));
             player.kick(reason);
             return;
         }
