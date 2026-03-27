@@ -2,11 +2,21 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations.matching { it.name.endsWith('Classpath') || it.name.endsWith('classpath') }.configureEach {
+    attributes {
+        attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+    }
+}
+
 repositories {
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
 }
-
-disableAutoTargetJvm()
 
 dependencies {
     implementation project(':common')
