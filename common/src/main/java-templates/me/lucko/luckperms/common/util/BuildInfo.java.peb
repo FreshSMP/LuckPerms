@@ -23,28 +23,11 @@
  *  SOFTWARE.
  */
 
-package me.lucko.luckperms.fabric.context;
+package me.lucko.luckperms.common.util;
 
-import me.lucko.luckperms.common.minecraft.context.MinecraftPlayerCalculator;
-import me.lucko.luckperms.fabric.LPFabricPlugin;
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+public final class BuildInfo {
+    private BuildInfo() {}
 
-import java.util.Set;
+    public static final String VERSION = "{{ version }}";
 
-public class FabricPlayerCalculator extends MinecraftPlayerCalculator {
-    public FabricPlayerCalculator(LPFabricPlugin plugin, Set<String> disabled) {
-        super(plugin, disabled);
-    }
-
-    public void registerListeners() {
-        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register(this::onWorldChange);
-    }
-
-    private void onWorldChange(ServerPlayer player, ServerLevel origin, ServerLevel destination) {
-        if (this.world || this.dimensionType) {
-            this.plugin.getContextManager().signalContextUpdate(player);
-        }
-    }
 }

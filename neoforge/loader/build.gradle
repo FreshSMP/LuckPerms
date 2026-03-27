@@ -1,52 +1,35 @@
-import net.neoforged.moddevgradle.internal.RunGameTask
-
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
-
 plugins {
     alias(libs.plugins.shadow)
     alias(libs.plugins.moddevgradle)
     id("java-library")
 }
 
-sourceCompatibility = 21
-targetCompatibility = 21
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+}
 
 neoForge {
     version = project.neoForgeVersion
-
     validateAccessTransformers = true
 
     runs {
         client {
             client()
-            //mods.set(new HashSet()) // Work around classpath issues by using the production jar for dev runs
         }
         server {
             server()
-            //mods.set(new HashSet()) // Work around classpath issues by using the production jar for dev runs
         }
     }
 }
 
-// Work around classpath issues by using the production jar for dev runs
-tasks.withType(RunGameTask).configureEach {
-    dependsOn(tasks.shadowJar)
-    doFirst {
-        File jar = file("run/mods/main.jar")
-        jar.parentFile.mkdirs()
-        Files.copy(tasks.shadowJar.archiveFile.get().asFile.toPath(), jar.toPath(), StandardCopyOption.REPLACE_EXISTING)
-    }
-}
-
-Configuration shade = configurations.create('shade')
-configurations.implementation {
-    extendsFrom configurations.shade
+configurations {
+    shade
+    implementation.extendsFrom shade
 }
 
 dependencies {
-    add('shade', project(':api'))
-    add('shade', project(':common:loader-utils'))
+    shade project(':api')
+    shade project(':common:loader-utils')
 }
 
 build {
@@ -75,7 +58,7 @@ processResources {
 
 shadowJar {
     archiveFileName = "LuckPerms-NeoForge-${project.ext.fullVersion}.jar"
-    configurations = [shade]
+    configurations = [project.configurations.shade]
 
     from {
         project(':neoforge').tasks.shadowJar.archiveFile

@@ -5,19 +5,30 @@ plugins {
     alias(libs.plugins.loom)
 }
 
-archivesBaseName = 'luckperms'
-sourceCompatibility = 21
-targetCompatibility = 21
+base {
+    archivesName = 'luckperms'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+}
 
 repositories {
     maven { url 'https://maven.fabricmc.net/' }
 }
 
+configurations {
+    shade
+    implementation.extendsFrom shade
+
+    jarInJar
+    implementation.extendsFrom jarInJar
+}
+
 dependencies {
     // https://modmuss50.me/fabric.html
-    minecraft 'com.mojang:minecraft:1.21.11'
-    mappings loom.officialMojangMappings()
-    modImplementation 'net.fabricmc:fabric-loader:0.18.2'
+    minecraft 'com.mojang:minecraft:26.1'
+    implementation 'net.fabricmc:fabric-loader:0.18.4'
 
     Set<String> apiModules = [
             'fabric-api-base',
@@ -28,14 +39,16 @@ dependencies {
     ]
 
     apiModules.forEach {
-        modImplementation(fabricApi.module(it, '0.139.4+1.21.11'))
+        implementation(fabricApi.module(it, '0.144.0+26.1'))
     }
 
-    include(modImplementation('me.lucko:fabric-permissions-api:0.6.1'))
+    jarInJar 'me.lucko:fabric-permissions-api:0.7.0'
 
-    implementation project(':common')
-    implementation project(':common:minecraft')
+    shade project(':common')
+    shade project(':common:minecraft')
 }
+
+loom.nestJars(tasks.named("shadowJar"), configurations.jarInJar)
 
 processResources {
     inputs.property 'version', project.ext.fullVersion
@@ -45,14 +58,12 @@ processResources {
 }
 
 shadowJar {
-    archiveFileName = "luckpermsfabric-${project.ext.fullVersion}-dev.jar"
+    archiveFileName = "LuckPerms-Fabric-${project.ext.fullVersion}.jar"
+    configurations = [project.configurations.shade]
 
     dependencies {
-        exclude('net.fabricmc:.*')
         include(dependency('net.luckperms:.*'))
         include(dependency('me.lucko.luckperms:.*'))
-        // We don't want to include the mappings in the jar do we?
-        exclude '/mappings/*'
     }
 
     relocate 'net.kyori.adventure', 'me.lucko.luckperms.lib.adventure'
@@ -76,16 +87,6 @@ shadowJar {
     relocate 'org.yaml.snakeyaml', 'me.lucko.luckperms.lib.yaml'
 }
 
-task remappedShadowJar(type: RemapJarTask) {
-    dependsOn tasks.shadowJar
-    input = tasks.shadowJar.archiveFile
-    addNestedDependencies = true
-    archiveFileName = "LuckPerms-Fabric-${project.ext.fullVersion}.jar"
-}
-
-tasks.assemble.dependsOn tasks.remappedShadowJar
-
 artifacts {
-    archives remappedShadowJar
-    shadow shadowJar
+    archives shadowJar
 }
